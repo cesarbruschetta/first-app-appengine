@@ -1,0 +1,72 @@
+body {
+  font-family: "Verdana", "lucida grande", 
+      Helvetica, sans-serif;
+  font-size: 12px;
+}
+
+#header {
+  vertical-align: middle;
+  margin-bottom: 1em;
+}
+
+ul#listMenu {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  float: left;
+  width: 100%;
+  background-color: #9f0000;
+  color: yellow;
+  margin-bottom: 0.25em;
+  /* font-size: 0.6em; */
+}
+
+
+/* Navigation bar */
+ul#listMenu li {
+  display: inline;
+}
+
+ul#listMenu li a {
+  float: left;
+  width: 5em;
+  color: yellow;
+  background-color: #9f0000;
+  padding: 0.2em 1em;
+  text-decoration: none;
+  border-right: 2px solid #fff;
+  text-align: center;
+}
+
+ul#listMenu li a:hover {
+  background-color: #f00;
+  color: yellow;
+}
+
+
+#bookmarksTable {
+  width:100%;
+  padding:0;
+  margin:0;
+  border-collapse: collapse;
+}
+
+#evenRow {
+  background: #fcf;
+}
+
+#oddRow {
+  background: #ffc;
+}
+
+
+#footer {
+  text-align: center;
+  font-size: 0.75em;
+}
+
+#bookRef {
+  font-size: 0.75em;
+  font-weight: bold;
+}
+

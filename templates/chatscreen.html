@@ -1,0 +1,17 @@
+{% extends "_base.html" %}
+{% block bodycontent %}
+	<h1>App Engine Chat</h1>
+	<p>
+		<form method="post" action="/chat">
+			<input type="text" name="message" size="60"/>
+			<input type="submit" name="Chat"/>
+		</form>
+	</p>
+	{% if error %}
+		<p>{{ error }}</p>
+	{% endif %}
+	{% for chat in chat_list %}
+		<p>{{ chat.text }} ({{chat.user.account}})
+			{{ chat.created|date:"D d M Y" }}</p>
+	{% endfor %}
+{% endblock %}

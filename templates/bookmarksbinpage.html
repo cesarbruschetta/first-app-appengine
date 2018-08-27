@@ -1,0 +1,26 @@
+<html>
+	<head>
+		<title>{% block title %}
+				If you see this, your page is incomplete
+				{% endblock title %}
+		</title>
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+		<link rel="stylesheet" type="text/css" href="/static/bookmarksbin.css" />
+
+	</head>
+	<body>
+		<!-- common header for all pages -->
+		<div id="header">
+			<h1>BookmarksBin</h1>
+		</div>
+		<div id="navigation">{% include "navigation.html" %}</div>
+		<div id="content">
+			{% block content %}
+				conteudo
+			{% endblock content %}
+		</div>
+		<!-- common fooger -->
+		<div id="footer">
+		</div>
+	</body>
+</html>

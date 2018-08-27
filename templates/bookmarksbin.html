@@ -1,0 +1,15 @@
+{% extends "bookmarksbinpage.html" %}
+	{% block title %}BookmarksBin{% endblock %}
+	{% block content %}
+		<h2>My Bookmarks</h2>
+		<table id="bookmarksTable">
+			{% for bookmark in bookmarks %}
+				<tr id=”{% cycle evenRow,oddRow %}”>
+					<td style=”width:15%;”>{{bookmark.timeStamp}}</td>
+					<td>{{bookmark.icon}}<a href="{{bookmark.url}}" target="_new" />{{bookmark.title}}</a><br>
+						{{bookmark.description}}
+					</td>
+				</tr>
+			{% endfor %}
+		</table>
+{% endblock %}

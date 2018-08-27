@@ -1,0 +1,4 @@
+#!/bin/bash
+
+#/home/cesaraugusto/bin/google_appengine/dev_appserver.py --datastore_path=/home/cesaraugusto/workspace/App_Engine/primeiro-sitema/ /home/cesaraugusto/workspace/App_Engine/primeiro-sitema/
+/home/cesaraugusto/bin/google_appengine/dev_appserver.py /home/cesaraugusto/workspace/App_Engine/primeiro-sitema/

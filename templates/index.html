@@ -1,0 +1,19 @@
+{% extends "_base.html" %}
+{% block title %} App Engine - HTML {% endblock %}
+{% block bodycontent %}
+	<h2>App Engine: About</h2>
+	<p>Welcome to the site dedicated to
+		learning Google App Engine.
+		We hope you find www.appenginelearn.com useful.</p>
+	<div>	
+		<p>Good luck!</p>
+		<p>Guess: {{ stguess }} </p>
+        <p> {{ msg }} </p>
+		
+		
+		<form method="post" action="">
+        	<p>Enter Guess: <input type="text" name="guess"/></p>
+            <p><input type="submit"></p>
+        </form>
+	</div>	
+{% endblock %}
