@@ -5,6 +5,16 @@ from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext.webapp import template
 from google.appengine.ext import db
 
+from os import sys, path
+
+# Add lib as primary libraries directory, with fallback to lib/dist
+# and optionally to lib/dist.zip, loaded using zipimport.
+lib_path = path.dirname(__file__)
+sys.path[0:0] = [
+    lib_path,
+    path.join(lib_path, 'lib'),
+]
+
 
 from util.sessions import Session
 
@@ -25,7 +35,7 @@ def doRender(handler, tname='index.html', values={}):
         newval['username'] = handler.session['username']
    
     outstr = template.render(temp, newval)
-    handler.response.out.write(outstr)
+    handler.response.out.write(unicode(outstr))
     return True
 
 class LoginHandler(webapp.RequestHandler):
@@ -169,9 +179,8 @@ def main():
                                           ('/apply', ApplyHandler),
                                           ('/members', MembersHandler),
                                           ('/chat', ChatHandler),
-                                          (r'^(/admin)(.*)$', appengine_admin.Admin), 
                                           ('/.*', MainHandler)],debug=True)
-
+    
     wsgiref.handlers.CGIHandler().run(application)
     
 if __name__ == '__main__':

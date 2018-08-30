@@ -1,55 +1,265 @@
-﻿{% extends "admin_base.html" %}
+﻿{% extends 'admin_base.html' %}
+{% from 'macros.html' import action_buttons with context %}
+
+{% if item %}
+  {% set breadcrumbs = [
+    (uri_for('list', model_name=model_name), model_name),
+    (uri_for('edit', model_name=model_name, key=item.key()), item),
+  ] %}
+{% else %}
+  {% set breadcrumbs = [
+    (uri_for('list', model_name=model_name), model_name),
+    ('#', 'New ' + model_name),
+  ] %}
+{% endif %}
+
+{% block title %}
+  {% if item %}
+  <div class='btn-group pull-right'>
+    {% block title_actions %}
+    <a class='link-button' href='{{ uri_for('new', model_name=model_name) }}'><div class='btn btn-info'>New {{ model_name }}</div></a>
+    {% if item.get_absolute_url %}
+    <a class='link-button' href='{{ item.get_absolute_url() }}' target='_blank'><div class='btn'>View &raquo;</div></a>
+    {% endif %}
+    {% endblock %}
+  </div>
+
+  {% endif %}
+  <h1>
+  {% if page_title %}
+    {{ page_title }}
+  {% else %}
+    {% if item %}
+    Edit {{ item }}
+    {% else %}
+    New {{ model_name }}
+    {% endif %}
+  {% endif %}
+  </h1>
+{% endblock %}
 
 {% block content %}
-<h2>Admin :: {{ moduleTitle }}</h2>
-{% if item %}
-<p class="createNew"><a href="{{ urlPrefix }}/{{ moduleTitle }}/new/">Create new</a>
-    {% if item.get_absolute_url %}
-         | <a href="{{ item.get_absolute_url }}">Preview in page &raquo;</a>
-    {% endif %}
-</p>
-{% endif %}
 <!-- Editable properties -->
-<form name="adminEditForm" method="post"
-    action="{{ urlPrefix }}/{{ moduleTitle }}/{% if item %}edit/{{ item.key }}{% else %}new{% endif %}/"
-    {% if editForm.enctype %}enctype="{{ editForm.enctype }}"{% endif %}>
-<table class="editForm">
-    <tr>
-        <td colspan="2"><h3>Editable properties</h3></td>
-    </tr>
-    {{ editForm }}
-    <tr>
-        <td>&nbsp;</td>
-        <td>
-            <div style="float:left; clear:left;" class="okButton">
-                <input type="submit" value="OK"/>
-            </div>
-            {% if item %}
-            <div style="float:right; clear:right;" class="deleteButton">
-                <a href="{{ urlPrefix }}/{{ moduleTitle }}/delete/{{ item.key }}/" onclick='return confirm("Are you sure?");'>Delete</a>
-            </div>
-            {% endif %}
-        </td>
-    </tr>
-    {% if item %}
-    <!-- Readonly properties -->
-    {% for field in readonlyProperties %}
-        <tr>
-            <td>{{ field.verbose_name }}:</td>
-            <td>
-            {% ifequal field.typeName "BlobProperty" %}
-                {% if field.value %}
-                <a href="{{urlPrefix}}/{{moduleTitle}}/get_blob_contents/{{field.name}}/{{ item.key }}/">File uploaded: {{field.meta.File_Name}}</a>
-                {% else %}
-                None
-                {% endif %}
-            {% else %}
-            {{ field.value }}
-            {% endifequal %}
-            </td>
-        </tr>
-    {% endfor %}
+  <form id='edit-form' method='post'
+        action='{% if item %}{{ uri_for('edit', model_name=model_name, key=item.key()) }}{% else %}{{ uri_for('new', model_name=model_name) }}{% endif %}'
+    {% if item_form.enctype %}enctype='{{ item_form.enctype }}'{% endif %}>
+    {{ csrf_token() }}
+    {% block extra_form_content %}{% endblock %}
+  {% if item_form.errors or extra_errors %}
+  <h3 class='text-error'>Errors</h3>
+  <ul class='errorlist'>
+    {% if extra_errors %}
+      {% for error_message in extra_errors %}
+    <li class='text-error'>{{ error_message|safe }}</li>
+      {% endfor %}
     {% endif %}
+    {% if item_form.errors %}
+      {% for field_name, error_messages in item_form.errors.items() %}
+        {% for error_message in error_messages %}
+    <li class='text-error'><a class='text-error' href='#row_{{ field_name }}'>{{ field_name }}: {{ error_message|safe }}</a></li>
+        {% endfor %}
+      {% endfor %}
+    {% endif %}
+  </ul>
+  {% endif %}
+  <table class='table table-striped table-bordered table-hover'>
+    <thead>
+    <tr>
+        <th colspan='2'><h3>Editable properties</h3></th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ action_buttons(model_name, item, extra_create_buttons, extra_edit_buttons) }}
+  {% for field in item_form %}
+    {% if field.name in item_form.dynamic_properties %}
+      {% continue %}
+    {% endif %}
+    <tr id='row_{{ field.name }}' class='control-group{% if field.errors %} error{% endif %}'>
+      <td class='table-row-heading'>{{ field.label|safe }}</td>
+      <td class='table-row-value'>
+        <div class='controls'>
+          {{ field|safe }}
+    {% if field.errors %}
+      {% for error in field.errors %}
+          <span class='help-inline'>{{ error|safe }}</span>
+      {% endfor %}
+    {% endif %}
+        </div>
+      </td>
+    </tr>
+  {% endfor %}
+  {% if item and item_form.dynamic_properties %}
+    <!-- Dynamic properties -->
+    <tr>
+      <td colspan='2'><h3>Dynamic properties (specific to this instance)</h3></td>
+    </tr>
+    {% for prop in item_form.dynamic_properties.keys() %}
+    <tr>
+      <td class='table-row-heading'>{{ item_form[prop].label|safe }}</td>
+      <td class='table-row-value'>
+        {{ item_form[prop]|safe }}
+      </td>
+    </tr>
+    {% endfor %}
+  {% endif %}{# item #}
+  {% if readonly_properties %}
+    <!-- Readonly properties -->
+    <tr>
+        <td colspan='2'><h3>Read-only properties</h3></td>
+    </tr>
+    {% for field in readonly_properties %}
+    <tr>
+      <td class='table-row-heading'>{{ field.verbose_name }}</td>
+      <td class='table-row-value'>
+      {% if field.typeName == 'BlobProperty' and field.value %}
+        <a href='{{ self.uri_for('blob', model_name=model_name, field_name=field.name, key=item.key()) }}'>File uploaded: {{ field.meta.File_Name }}</a>
+      {% else %}
+        {{ field.value }}
+      {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  {% endif %}{# readonly_properties #}
+    {{ action_buttons(model_name, item, extra_create_buttons, extra_edit_buttons) }}
+    </tbody>
 </table>
 </form>
+
+<form method='post' class='delete-item-form' style='display:none' action=''>{{ csrf_token () }}</form>
 {% endblock %}
+
+{% block javascript %}
+  <script type='text/javascript'>
+    var jsTimezone = jstz.determine().name();
+    var timezoneList = [jsTimezone, 'UTC'];
+    if (jsTimezone !== '{{ settings.TIMEZONE }}') {
+      timezoneList.unshift('{{ settings.TIMEZONE }}');
+    }
+    // work around a bug in datepicker
+    originalParseTime = $.datepicker.parseTime;
+    $.datepicker.parseTime = function(timeFormat, timeString, timeSettings) {
+      timeString = $.trim(timeString).split(' ')[0];
+      return originalParseTime(timeFormat, timeString, timeSettings);
+    };
+    // end workaround
+    $('.admin-datetime').datetimepicker({
+      dateFormat: 'yy-mm-dd',
+      showTime: false,
+      showTimezone: true,
+      timeFormat: "hh:mm:ss z",
+      timezoneText: 'Zone',
+      timezoneList: timezoneList,
+    });
+
+    $('.help_text').addClass('help-block');
+
+    $item_form = $('#edit-form');
+
+    $item_form.find('.delete-item').click(function(e) {
+      e.preventDefault();
+      if (confirm('Are you sure you want to delete this item?')) {
+        $('.delete-item-form').attr('action', $(this).data('action')).submit();
+      }
+    });
+
+    $item_form.delegate('.ajax_select_del', 'click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var $instance = $(this).closest('li');
+      var $pagedSelector = $instance.closest('.ajax_select').find('.paged_selector');
+      var $ajaxSelect = $instance.closest('.ajax_select');
+      if (!$ajaxSelect.data('multiple') && $ajaxSelect.data('required')) {
+        if ($ajaxSelect.find('.ajax_select_values').children().length <= 1) {
+          return;
+        }
+      }
+      $instance.find('input')
+          .attr('disabled', 'disabled').end()
+        .find('.ajax_select_del')
+          .removeClass('ajax_select_del icon-remove-sign').addClass('paged_selector_add icon-plus')
+          .end();
+      $instance.prependTo($pagedSelector);
+    });
+
+    $item_form.find('.ajax_add_key_input').keydown(function(e) {
+      if (e.keyCode === 13) {
+        $(this).closest('.ajax_add_value').find('.ajax_add_submit_input').click();
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    });
+    $item_form.find('.ajax_add_submit_input').click(function(e) {
+      e.preventDefault();
+      var $self = $(this),
+          $ajaxSelect = $self.closest('.ajax_select'),
+          $input = $self.closest('.ajax_add_value').find('.ajax_add_key_input');
+      if (!$input.val()) {
+        return;
+      }
+      var $item = '<li><input type=hidden name="' + $ajaxSelect.data('name') + '" value="' + $input.val()  + '"/>' +
+                  '<a href="#" class="icon-remove-sign ajax_select_del"> </a> &mdash; ' +
+                  '<span>Key: ' + $input.val() + '</span></li>';
+      if (!$ajaxSelect.data('multiple')) {
+        $ajaxSelect.find('.ajax_select_values').html('');
+      }
+      $ajaxSelect.find('.ajax_select_values').append($item);
+      $input.val('');
+    });
+
+
+    {# paged selector code #}
+    $('.open_paged_selector').click(function(e) {
+      e.preventDefault();
+      $(this).closest('.ajax_paged_selector').find('.paged_selector').slideToggle();
+    });
+
+    $('.paged_selector').delegate('.paged_selector_add', 'click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var $item = $(this).closest('li'),
+          $ajaxSelect = $item.closest('.ajax_select');
+      $item.find('.paged_selector_add')
+          .removeClass('paged_selector_add icon-plus').addClass('ajax_select_del icon-remove-sign')
+          .end()
+        .find('input').removeAttr('disabled');
+      if (!$ajaxSelect.data('multiple')) {
+        $ajaxSelect.find('.ajax_select_values').html('');
+      }
+      $item.appendTo($ajaxSelect.find('.ajax_select_values'));
+    });
+
+    {# TODO: skip existing objects #}
+    $('.paged_selector_next').click(function(e) {
+      e.preventDefault();
+      var $self = $(this),
+          $thisItem = $self.closest('li');
+          TEMPLATE = $thisItem.closest('.ajax_select').find('.ajax_select_item_template').html();
+      $.ajax({
+        url: $self.attr('href'),
+        dataType: 'json',
+        type: 'GET',
+        success: function(data) {
+          var item, $selectItem;
+          for (var i in data) {
+            item = data[i];
+            if (item.hasOwnProperty('next_url')) {
+              if (item.next_url) {
+                $self.attr('href', item.next_url + '&ajax_mini_page=1');
+              } else {
+                $thisItem.hide();
+              }
+              continue;
+            }
+            $selectItem = $(TEMPLATE.replace('%class_name%', item.model_name))
+              .find('input')
+                .val(item.key).end()
+              .find('span > a')
+                .html(item.name).attr('href', item.edit_url).end()
+              .insertBefore($thisItem);
+          }
+        }
+      });
+    });
+    {# END paged selector code #}
+  </script>
+{% endblock javascript %}

@@ -1,5 +1,0 @@
-#!/bin/bash
-
-#/home/cesaraugusto/bin/google_appengine/dev_appserver.py -c /home/cesaraugusto/workspace/App_Engine/primeiro-sitema
-
-/home/cesaraugusto/bin/google_appengine/appcfg.py update /home/cesaraugusto/workspace/App_Engine/primeiro-sitema

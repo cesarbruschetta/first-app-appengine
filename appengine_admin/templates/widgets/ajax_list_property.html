@@ -1,0 +1,39 @@
+{% from 'macros.html' import select_item with context %}
+<div class='ajax_select'{{ flat_attrs }} data-name='{{ name }}' data-multiple={{ 1 if multiple else 0 }} data-required={{ 1 if required else 0 }}>
+  <ul class='ajax_select_values'>
+{% for key, obj in objects %}
+  {{ select_item(name, get_item_edit_url, obj, key, is_added=True) }}
+{% endfor %}
+  </ul>
+
+  <div class='ajax_add_value'>
+{% for cls_name, cls in object_classes.items() %}
+  {% if loop.first %}
+    <ul class='ajax_paged_selectors'>
+  {% endif %}
+      <li class='ajax_paged_selector'>
+        <a href='#' class='open_paged_selector'>Browse {{ cls_name }}s</a>
+
+        <ul class='paged_selector' style='display:none'>
+  {% set page = paged_selector(cls) %}
+  {% for obj in page %}
+    {# TODO skip existing objects #}
+    {{ select_item(name, get_item_edit_url, obj, get_reference_key(obj), is_added=False) }}
+  {% endfor %}
+  {% if page.has_next() %}
+          <li><a href='{{ page.get_next_url() }}&ajax_mini_page=1' class='paged_selector_next'>Show more</a></li>
+  {% endif %}
+        </ul>
+      </li>
+  {% if loop.last %}
+    </ul>
+  {% endif %}
+{% endfor %}
+    <div class='ajax_add_hint'>OR enter the string representation of a key:</div>
+    <input type=text name='{{ name }}' value='' class='ajax_add_key_input'/>
+    <input type=submit name=add value='Add' class='btn btn-small btn-info ajax_add_submit_input'/>
+  </div>
+  <script type='text/template' class='ajax_select_item_template'>
+    {{ select_item(name, None, '', '', is_added=False) }}
+  </script>
+</div>{# .ajax_select #}

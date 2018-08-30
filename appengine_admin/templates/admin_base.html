@@ -1,59 +1,84 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>App admin panel</title>
-<style type="text/css" media="screen">
-    @import url( /appengine_admin_media/style.css );
-</style>
-<script type="text/javascript" src="/appengine_admin_media/js/core.js">
-</script>
-<script type="text/javascript" src="/appengine_admin_media/js/calendar.js">
-</script>
-<script type="text/javascript" src="/appengine_admin_media/js/DateTimeShortcuts.js">
-</script>
+  <meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AppEngine Admin</title>
+  <link rel='stylesheet' type='text/css' media='screen' href='//ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/themes/base/jquery-ui.css'>
+  <link rel='stylesheet' type='text/css' media='screen' href='{{ media_url }}/bootstrap/css/bootstrap{% if not DEBUG %}.min{% endif %}.css'/>
+  <link rel='stylesheet' type='text/css' media='screen' href='{{ media_url }}/css/main.css'/>
 </head>
 <body>
+  <div class='navbar navbar-inverse navbar-fixed-top'>
+    <div class="navbar-inner">
+      <div class="container-fluid">
+        <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </a>
+        <a class="brand" href="{{ uri_for('index') }}">AppEngine Admin</a>
+        <div class="nav-collapse collapse">
+          <p class="navbar-text pull-right">
+            Easily manage your datastore
+          </p>
+          {% from 'macros.html' import generate_breadcrumbs with context %}
+          {{ generate_breadcrumbs(breadcrumbs) }}
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+  </div>
 
-<div id="wrapper">
+  <div class="container-fluid">
+    <div class="row-fluid">
+      <div class="span3">
+        <div class="well sidebar-nav">
+          <ul class="nav nav-list">
+            <li class="nav-header">Models</li>
+{% for side_model_name in models %}
+            <li{% if side_model_name == model_name %} class='active'{% endif %}><a href='{{ uri_for('list', model_name=side_model_name) }}'>{{ side_model_name }}</a></li>
+{% endfor %}
+          </ul>
+        </div><!--/.well -->
+      </div><!--/span-->
+      <div class="span9">
+        <div class="row-fluid">
+          {% block title %}{% endblock %}
+          {% set messages = get_messages() %}
+          {% if messages %}
+          <div class='messages'>
+            {% for message in messages %}
+              <div class='alert alert-success'>
+                <button type='button' class='close' data-dismiss='alert'>x</button>
+                <span class='alert-html-message'>{{ message|safe }}</span>
+              </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          {% block content_top %}{% endblock %}
+          {% block content %}{% endblock %}
+          {% block content_bottom %}{% endblock %}
+        </div><!--/row-->
+      </div><!--/span-->
+    </div><!--/row-->
 
-        <div id="header">
-            <h1><a href="{{ urlPrefix }}/">App admin panel</a></h1>
-        </div>
+    <hr>
 
-        {% if not errorpage %}
-        <div id="sidebar">
+    <footer>
+      {% block footer %}{% endblock %}
 
-            <p>Models</p>
-            <ul>
-                {% for modelName in models %}
-                <li><a href="{{ urlPrefix }}/{{ modelName }}/list/">{{ modelName }}</a></li>
-                {% endfor %}
-            </ul>
-            <!--<p>Recent Actions</p>
-            <ul>
-                <li><a href="#">Recent entry one</a></li>
-                <li><a href="#">Recent entry two</a></li>
-                <li><a href="#">Recent entry three</a></li>
-                <li><a href="#">Recent entry four</a></li>
-            </ul>-->
+      <p><a href='https://github.com/humble/appengine_admin'>AppEngine Admin</a></p>
+      <p>Designed using Twitter Boostrap</p>
+    </footer>
 
-        </div>
-        {% endif %}
+  </div><!--/.fluid-container-->
 
-        <div id="body">
-            {% block content %}{% endblock %}
-        </div>
+  <script src='//ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js'></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jqueryui/1.8.23/jquery-ui.min.js"></script>
+  <script src='{{ media_url }}/js/jstz{% if not DEBUG %}.min{% endif %}.js'></script>
+  <script src='{{ media_url }}/js/jquery-ui-timepicker-addon{% if not DEBUG %}.min{% endif %}.js'></script>
+  <script src='{{ media_url }}/bootstrap/js/bootstrap{% if not DEBUG %}.min{% endif %}.js'></script>
 
-
-        <div id="footer">
-            <div id="copyright">
-                <a href="http://code.google.com/p/appengine-admin/">Google Appengine Admin</a><br/>
-                Design by <a href="http://www.ginger-ninja.net/">Ginger Ninja</a>
-            </div>
-        </div>
-
-</div>
-
+  {% block javascript %}{% endblock %}
 </body>
 </html>

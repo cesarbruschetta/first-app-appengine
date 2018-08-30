@@ -1,135 +1,139 @@
-import logging
-import copy
-
-from google.appengine.api import datastore_errors
 from google.appengine.ext import db
-try:
-    from django.newforms.util import smart_unicode
-except ImportError:
-    try:
-        from django.forms.util import smart_unicode
-    except ImportError:
-        from django.utils.encoding import smart_unicode
 
-from . import admin_forms
-from . import utils
-from .utils import Http404
-
-class PropertyWrapper(object):
-    def __init__(self, prop, name):
-        logging.info("Caching info about property '%s'" % name)
-        self.prop = prop
-        self.name = name
-        self.typeName = prop.__class__.__name__
-        logging.info("  Property type: %s" % self.typeName)
-        # Cache referenced class name to avoid BadValueError when rendering model_item_edit.html template.
-        # Line like this could cause the exception: field.reference_class.kind
-        if self.typeName == 'ReferenceProperty':
-            self.reference_kind = prop.reference_class.kind()
-        # This might fail in case if prop is instancemethod
-        self.verbose_name = getattr(prop, 'verbose_name', self.name)
-        # set verbose_name to at least something represenative
-        if not self.verbose_name:
-            self.verbose_name = self.name
-        self.value = ''
-
-    def __deepcopy__(self, memo):
-        return PropertyWrapper(self.prop, self.name)
-
-    def __str__(self):
-        return "PropertyWrapper (name: %s; type: %s; value: %r)" % (self.name, self.typeName, self.value)
-
-
-class ModelAdmin(object):
-    """Use this class as base for your model registration to admin site.
-        Available settings:
-        model - db.model derived class that describes your data model
-        listFields - list of field names that should be shown in list view
-        editFields - list of field names that that should be used as editable fields in admin interface
-        readonlyFields - list of field names that should be used as read-only fields in admin interface
-        listGql - GQL statement for record ordering/filtering/whatever_else in list view
-    """
-    model = None
-    listFields = ()
-    editFields = ()
-    readonlyFields = ()
-    listGql = ''
-    AdminForm = None
-
-    def __init__(self):
-        super(ModelAdmin, self).__init__()
-        # Cache model name as string
-        self.modelName = str(self.model.kind())
-        self._listProperties = []
-        self._editProperties = []
-        self._readonlyProperties = []
-        # extract properties from model by propery names
-        self._extractProperties(self.listFields, self._listProperties)
-        self._extractProperties(self.editFields, self._editProperties)
-        self._extractProperties(self.readonlyFields, self._readonlyProperties)
-        if self.AdminForm is None:
-            self.AdminForm = admin_forms.createAdminForm(
-                formModel = self.model,
-                editFields = self.editFields,
-                editProps = self._editProperties
-            )
-
-    def _extractProperties(self, fieldNames, storage):
-        for propertyName in fieldNames:
-            storage.append(PropertyWrapper(getattr(self.model, propertyName), propertyName))
-
-    def _attachListFields(self, item):
-        """Attaches property instances for list fields to given data entry.
-            This is used in Admin class view methods.
-        """
-        item.listProperties = copy.deepcopy(self._listProperties[:])
-        for prop in item.listProperties:
-            try:
-                prop.value = getattr(item, prop.name)
-                if prop.typeName == 'BlobProperty':
-                    prop.meta = utils.getBlobProperties(item, prop.name)
-                    if prop.value:
-                        prop.value = True # release the memory
-                if prop.typeName == 'ManyToManyProperty':
-                    # Show pretty list of referenced items.
-                    # Show 'None' in place of missing items
-                    new_value_list = []
-                    for key in prop.value:
-                        new_value_list.append(smart_unicode(db.get(key)))
-                    prop.value = ', '.join(new_value_list)
-            except datastore_errors.Error, exc:
-                # Error is raised if referenced property is deleted
-                # Catch the exception and set value to none
-                logging.warning('Error catched in ModelAdmin._attachListFields: %s' % exc)
-                prop.value = None
-            # convert the value to unicode for displaying in list view
-            if hasattr(prop.value, '__call__'):
-                # support for methods
-                prop.value = prop.value()
-            prop.value = smart_unicode(prop.value)
-        return item
+from . import admin_forms, utils
 
 
 # holds model_name -> ModelAdmin_instance mapping.
-_modelRegister = {}
+_model_register = {}
+
+
+class PropertyMap(object):
+  def __init__(self, name, prop_cls, value=None):
+    self.name = name
+    self.prop_cls = prop_cls
+    self.value = value
+
+  @property
+  def verbose_name(self):
+    return getattr(self.prop_cls, 'verbose_name', None) or utils.get_human_name(self.name)
+
+
+class ModelAdmin(object):
+  '''Extend ModelAdmin before you register your models to the admin.
+
+    Available properties:
+      * model - db.model derived class that describes your data model
+      * expect_duplicates - for pagination
+      * list_fields - list of field names that should be shown in list view
+      * edit_fields - list of field names that that should be editable
+      * readonly_fields - list of field names that should be read-only
+      * pre_init, post_init, pre_save, post_save, validate_[field_name]
+          - customize a model instance before init, before/after save, or with
+            per-field processing/cleaning
+          - see admin_forms.create for more details
+  '''
+  model = None
+  expect_duplicates = False
+  list_fields = ()
+  edit_fields = ()
+  readonly_fields = ()
+  new_fields = ()
+  new_readonly_fields = ()
+  pre_init = None
+  post_init = None
+  pre_save = None
+  post_save = None
+
+  def __init__(self):
+    super(ModelAdmin, self).__init__()
+    # Cache model name as string
+    self.model_name = str(self.model.kind())
+
+    VALIDATE_PREFIX = 'validate_'
+    field_validators = {}
+    for prop_name in dir(self):
+      if prop_name.startswith(VALIDATE_PREFIX):
+        field_validators[prop_name[len(VALIDATE_PREFIX):]] = getattr(self, prop_name)
+
+    self.AdminForm = admin_forms.create(
+      model=self.model,
+      only=self.edit_fields,
+      exclude=self.readonly_fields,
+      pre_init=self.pre_init,
+      post_init=self.post_init,
+      pre_save=self.pre_save,
+      post_save=self.post_save,
+      field_validators=field_validators,
+    )
+
+    self.AdminNewForm = admin_forms.create(
+      model=self.model,
+      only=self.new_fields,
+      exclude=self.new_readonly_fields,
+      pre_init=self.pre_init,
+      post_init=self.post_init,
+      pre_save=self.pre_save,
+      post_save=self.post_save,
+      field_validators=field_validators,
+    )
+
+  def list_model_iter(self, model):
+    '''Create a generator to iterate through the list fields for an instance.
+
+    Used to generate the rows when listing objects.
+    '''
+    for field_name in self.list_fields:
+      if isinstance(field_name, basestring):
+        try:
+          yield getattr(model, field_name)
+        except db.ReferencePropertyResolveError:
+          yield '[missing]'
+      elif callable(field_name):
+        yield callable(model)
+
+  def list_model_class_iter(self):
+    '''Create a generator to iterate through the list fields for the model class.
+
+    Used to generate the row heading when listing objects.
+    '''
+    model_class = self.model
+    for field_name in self.list_fields:
+      if isinstance(field_name, basestring):
+        yield PropertyMap(field_name, getattr(model_class, field_name))
+      elif callable(field_name):
+        yield PropertyMap(field_name.__name__, field_name)
+
+  def list_model_readonly_iter(self, model):
+    '''Create a generator to iterate through the read-only fields for an instance.
+
+    Used to generate the list of readonly properties when editing an item.
+    '''
+    for field_name in self.readonly_fields:
+      try:
+        result = getattr(model, field_name)
+      except db.ReferencePropertyResolveError:
+        result = '[missing]'
+      yield PropertyMap(field_name, getattr(self.model, field_name), result)
+
 
 def register(*args):
-    """Registers ModelAdmin instance for corresponding model.
-        Only one ModelAdmin instance per model can be active.
-        In case if more ModelAdmin instances with same model are registered
-        last registered instance will be the active one.
-    """
-    for modelAdminClass in args:
-        modelAdminInstance = modelAdminClass()
-        _modelRegister[modelAdminInstance.modelName] = modelAdminInstance
-        logging.info("Registering AdminModel '%s' for model '%s'" % (modelAdminClass.__name__, modelAdminInstance.modelName))
+  '''Registers ModelAdmin instance for corresponding model.
 
-def getModelAdmin(modelName):
-    """Get ModelAdmin instance for particular model by model name (string).
-        Raises Http404 exception if not found.
-        This function is used internally by appengine_admin
-    """
-    try:
-        return _modelRegister[modelName]
-    except KeyError:
-        raise Http404()
+  If more tha one ModelAdmin is registereed with the same model,
+  only the last registered will be active.
+  '''
+  for model_admin_class in args:
+    model_admin_instance = model_admin_class()
+    _model_register[model_admin_instance.model_name] = model_admin_instance
+
+
+def get_model_admin(model_name):
+  '''Get ModelAdmin instance for particular model by model name (string).
+
+  Raises utils.Http404 exception if not found.
+  This function is used internally by appengine_admin
+  '''
+  try:
+    return _model_register[model_name]
+  except KeyError:
+    raise utils.Http404()
